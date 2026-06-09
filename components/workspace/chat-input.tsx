@@ -14,6 +14,9 @@ export function ChatArea() {
   const { activeProject, updateFeed, triggerAnalysis } = useApp();
   const feed = activeProject?.feed || [];
 
+  const lastItem = feed[feed.length - 1];
+  const isWaitingForAnswer = lastItem && lastItem.type === "consultor-question";
+
   const [manualInput, setManualInput] = useState("");
 
   const {
@@ -41,7 +44,7 @@ export function ChatArea() {
     if (!manualInput.trim()) return;
     const newItem: FeedItem = {
       id: Math.random().toString(36).substr(2, 9),
-      type: "manual",
+      type: isWaitingForAnswer ? "cliente-answer" : "manual",
       text: manualInput.trim(),
       timestamp: new Date(),
     };
@@ -92,7 +95,11 @@ export function ChatArea() {
         <div className="flex gap-2">
           <Textarea
             id="chat-input"
-            placeholder="Escribe un requerimiento, regla de negocio o nota aquí..."
+            placeholder={
+              isWaitingForAnswer
+                ? "Escribe la respuesta de tu cliente a la pregunta..."
+                : "Escribe un requerimiento, regla de negocio o nota aquí..."
+            }
             value={manualInput}
             onChange={(e) => setManualInput(e.target.value)}
             onKeyDown={(e) => {

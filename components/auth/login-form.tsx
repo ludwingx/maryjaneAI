@@ -70,7 +70,7 @@ export function LoginForm() {
         </p>
       </div>
 
-      <Card className="border border-border bg-card shadow-2xl relative overflow-hidden transition-all duration-300">
+      <Card key={isRegister ? "register" : "login"} className="border border-border bg-card shadow-2xl relative overflow-hidden transition-all duration-300 animate-fade-in">
         <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-primary via-cyan to-primary" />
 
         <CardHeader className="text-center pt-8 pb-4">

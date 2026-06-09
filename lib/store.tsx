@@ -93,11 +93,12 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         projects: [...state.projects, action.project],
         activeProjectId: action.project.id,
+        isAnalyzing: false,
       };
     }
 
     case "SET_ACTIVE_PROJECT":
-      return { ...state, activeProjectId: action.id };
+      return { ...state, activeProjectId: action.id, isAnalyzing: false };
 
     case "UPDATE_FEED":
       return {
@@ -419,19 +420,96 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: "TOGGLE_COPILOT" });
   }, []);
 
+  const triggerChatResponse = useCallback(
+    async (updatedFeed: FeedItem[]) => {
+      if (!state.activeProjectId) return;
+
+      const aiMessageId = `ai-${Math.random().toString(36).substr(2, 9)}`;
+      const aiMessage: FeedItem = {
+        id: aiMessageId,
+        type: "ai",
+        text: "",
+        timestamp: new Date(),
+      };
+      
+      let currentFeed = [...updatedFeed, aiMessage];
+      dispatch({
+        type: "UPDATE_FEED",
+        projectId: state.activeProjectId,
+        feed: currentFeed,
+      });
+
+      try {
+        const res = await fetch("/api/ai/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: updatedFeed }),
+        });
+
+        if (!res.ok) throw new Error("Error en chat");
+        if (!res.body) throw new Error("No response body");
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let accumulatedText = "";
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          accumulatedText += decoder.decode(value, { stream: true });
+
+          currentFeed = currentFeed.map((item) =>
+            item.id === aiMessageId ? { ...item, text: accumulatedText } : item
+          );
+          
+          dispatch({
+            type: "UPDATE_FEED",
+            projectId: state.activeProjectId,
+            feed: currentFeed,
+          });
+        }
+
+        // Sync final updated feed to DB
+        const proj = state.projects.find((p) => p.id === state.activeProjectId);
+        syncWithDB(state.activeProjectId, currentFeed, proj?.analysis || null);
+      } catch (e) {
+        console.error("Chat streaming error:", e);
+        // Clean up empty message on failure
+        const cleanedFeed = currentFeed.filter((item) => item.id !== aiMessageId);
+        dispatch({
+          type: "UPDATE_FEED",
+          projectId: state.activeProjectId,
+          feed: cleanedFeed,
+        });
+      }
+    },
+    [state.activeProjectId, state.projects, dispatch, syncWithDB]
+  );
+
   const triggerAnalysis = useCallback(
     async (feedOverride?: FeedItem[]) => {
       const currentFeed = feedOverride || activeProject?.feed || [];
       const feedText = currentFeed.map((item) => item.text).join("\n");
       if (!feedText.trim()) return;
 
+      // Disparar respuesta de chat conversacional en streaming si el último mensaje no es de la IA
+      const lastItem = currentFeed[currentFeed.length - 1];
+      if (lastItem && lastItem.type !== "ai") {
+        triggerChatResponse(currentFeed);
+      }
+
       dispatch({ type: "SET_ANALYZING", value: true });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
       try {
         const res = await fetch("/api/ai/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ context: feedText }),
+          signal: controller.signal,
         });
+        clearTimeout(timeoutId);
 
         if (!res.ok) {
           throw new Error("Error al analizar");
@@ -485,36 +563,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
                 projectId: state.activeProjectId,
                 analysis: finalData,
               });
-
-              // Híbrido: Si la IA sugirió alguna pregunta, la agregamos al chat feed de forma silenciosa (sin disparar análisis recursivo)
-              if (finalData.suggested_questions && finalData.suggested_questions.length > 0) {
-                const firstQuestion = finalData.suggested_questions[0].question;
-                const alreadyAsked = currentFeed.some(item => item.type === "ai" && item.text.includes(firstQuestion));
-                
-                if (!alreadyAsked) {
-                  const aiResponseItem: FeedItem = {
-                    id: `ai-${Math.random().toString(36).substr(2, 9)}`,
-                    type: "ai",
-                    text: firstQuestion,
-                    timestamp: new Date(),
-                  };
-                  const newFeed = [...currentFeed, aiResponseItem];
-                  
-                  // Actualizamos el feed en el estado local del proyecto sin disparar otro análisis
-                  dispatch({
-                    type: "UPDATE_FEED",
-                    projectId: state.activeProjectId,
-                    feed: newFeed,
-                  });
-                  
-                  // Sincronizar el feed actualizado con la base de datos de manera silenciosa
-                  fetch(`/api/projects/${state.activeProjectId}/sync`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ feed: newFeed, analysis: finalData }),
-                  }).catch(e => console.error("Database sync error (silent):", e));
-                }
-              }
             }
           }
         } catch (e) {

@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useApp } from "@/lib/store";
 import { ChatArea } from "@/components/workspace/chat-input";
 import { AICopilotPanel } from "@/components/workspace/ai-copilot-panel";
+import { ReportPanel } from "@/components/workspace/report-panel";
 import { TipsModal } from "@/components/workspace/tips-modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import {
   Edit2,
   Check,
   X,
+  FileText,
 } from "lucide-react";
 
 export default function WorkspacePage() {
@@ -32,6 +34,7 @@ export default function WorkspacePage() {
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [activeTab, setActiveTab] = useState<"relevamiento" | "reporte">("relevamiento");
 
   if (!activeProject) {
     return (
@@ -66,95 +69,115 @@ export default function WorkspacePage() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-full max-h-full overflow-hidden bg-background">
-      {/* Chat Section */}
-      <section className="flex-1 flex flex-col border-r border-border h-full overflow-hidden relative">
-        {/* Workspace Header */}
-        <header className="p-4 border-b border-border flex items-center justify-between bg-card/50 backdrop-blur-md z-10">
-          <div className="flex items-center gap-3">
-            {/* Sidebar toggle button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleSidebar}
-              className="h-8 w-8 hover:bg-muted"
-              title={sidebarOpen ? "Ocultar menú lateral" : "Mostrar menú lateral"}
-            >
-              <PanelLeft className={`h-4 w-4 transition-transform duration-300 ${!sidebarOpen ? "text-primary" : "text-muted-foreground"}`} />
-            </Button>
+    <div className="flex-1 flex flex-col h-full max-h-full overflow-hidden bg-background">
+      {/* Workspace Header */}
+      <header className="p-4 border-b border-border flex flex-col sm:flex-row gap-3 sm:gap-0 sm:items-center justify-between bg-card/50 backdrop-blur-md z-10">
+        <div className="flex items-center gap-3">
+          {/* Sidebar toggle button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleSidebar}
+            className="h-8 w-8 hover:bg-muted"
+            title={sidebarOpen ? "Ocultar menú lateral" : "Mostrar menú lateral"}
+          >
+            <PanelLeft className={`h-4 w-4 transition-transform duration-300 ${!sidebarOpen ? "text-primary" : "text-muted-foreground"}`} />
+          </Button>
 
-            <div className="p-2 bg-primary/10 rounded-lg text-primary">
-              <Sparkles className="h-5 w-5 animate-pulse" />
-            </div>
-
-            {isEditingTitle ? (
-              <div className="flex items-center gap-1">
-                <input
-                  type="text"
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  className="text-sm font-bold bg-background border border-border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary w-48"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSaveTitle();
-                    if (e.key === "Escape") setIsEditingTitle(false);
-                  }}
-                  autoFocus
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleSaveTitle}
-                  className="h-7 w-7 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
-                >
-                  <Check className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsEditingTitle(false)}
-                  className="h-7 w-7 text-destructive hover:bg-destructive/10"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5 group">
-                <div>
-                  <h1 className="font-bold text-sm tracking-tight flex items-center gap-2">
-                    {activeProject.name}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={handleStartEdit}
-                      className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted"
-                      title="Editar nombre"
-                    >
-                      <Edit2 className="h-3 w-3 text-muted-foreground" />
-                    </Button>
-                  </h1>
-                  <p className="text-xs text-muted-foreground">
-                    Workspace de Relevamiento Inteligente
-                  </p>
-                </div>
-              </div>
-            )}
+          <div className="p-2 bg-primary/10 rounded-lg text-primary">
+            <Sparkles className="h-5 w-5 animate-pulse" />
           </div>
 
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs py-1">
-              ES-ES
-            </Badge>
+          {isEditingTitle ? (
+            <div className="flex items-center gap-1">
+              <input
+                type="text"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                className="text-sm font-bold bg-background border border-border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary w-48"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveTitle();
+                  if (e.key === "Escape") setIsEditingTitle(false);
+                }}
+                autoFocus
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleSaveTitle}
+                className="h-7 w-7 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
+              >
+                <Check className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsEditingTitle(false)}
+                className="h-7 w-7 text-destructive hover:bg-destructive/10"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 group">
+              <div>
+                <h1 className="font-bold text-sm tracking-tight flex items-center gap-2">
+                  {activeProject.name}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleStartEdit}
+                    className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted"
+                    title="Editar nombre"
+                  >
+                    <Edit2 className="h-3 w-3 text-muted-foreground" />
+                  </Button>
+                </h1>
+                <p className="text-xs text-muted-foreground">
+                  Workspace de Relevamiento Inteligente
+                </p>
+              </div>
+            </div>
+          )}
 
+          {/* Tab Selection buttons */}
+          <div className="flex bg-muted/40 p-1 rounded-lg border border-border/40 ml-4">
             <Button
-              variant="outline"
+              variant={activeTab === "relevamiento" ? "secondary" : "ghost"}
               size="sm"
-              onClick={() => setIsHelpOpen(true)}
-              className="gap-1.5 h-9"
+              onClick={() => setActiveTab("relevamiento")}
+              className="text-xs h-7 px-3 font-semibold"
             >
-              <HelpCircle className="h-4 w-4" />
-              Tips
+              Relevamiento
             </Button>
+            <Button
+              variant={activeTab === "reporte" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setActiveTab("reporte")}
+              className="text-xs h-7 px-3 font-semibold gap-1.5"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Informe & Cotización
+            </Button>
+          </div>
+        </div>
 
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs py-1">
+            ES-ES
+          </Badge>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsHelpOpen(true)}
+            className="gap-1.5 h-9"
+          >
+            <HelpCircle className="h-4 w-4" />
+            Tips
+          </Button>
+
+          {activeTab === "relevamiento" && (
             <Button
               variant="outline"
               size="sm"
@@ -171,8 +194,10 @@ export default function WorkspacePage() {
               />
               Analizar
             </Button>
+          )}
 
-            {/* Copilot panel toggle button */}
+          {/* Copilot panel toggle button */}
+          {activeTab === "relevamiento" && (
             <Button
               variant="ghost"
               size="icon"
@@ -182,15 +207,26 @@ export default function WorkspacePage() {
             >
               <PanelRight className={`h-4 w-4 transition-transform duration-300 ${!copilotOpen ? "text-primary" : "text-muted-foreground"}`} />
             </Button>
-          </div>
-        </header>
+          )}
+        </div>
+      </header>
 
-        {/* Chat area with feed + input */}
-        <ChatArea />
-      </section>
+      {/* Main Workspace Body */}
+      <div className="flex-1 flex flex-row h-full max-h-full overflow-hidden">
+        {activeTab === "relevamiento" ? (
+          <>
+            {/* Chat Section */}
+            <section className="flex-1 flex flex-col border-r border-border h-full overflow-hidden relative">
+              <ChatArea />
+            </section>
 
-      {/* AI Copilot Panel */}
-      {copilotOpen && <AICopilotPanel />}
+            {/* AI Copilot Panel */}
+            {copilotOpen && <AICopilotPanel />}
+          </>
+        ) : (
+          <ReportPanel />
+        )}
+      </div>
 
       {/* Tips Modal */}
       <TipsModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />

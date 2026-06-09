@@ -31,7 +31,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col antialiased">
         <AppProvider>
           {children}
-          <Toaster position="top-right" richColors closeButton visibleToasts={3} />
+          <Toaster position="top-right" richColors closeButton visibleToasts={3} duration={2000} />
         </AppProvider>
       </body>
     </html>

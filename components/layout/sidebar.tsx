@@ -85,9 +85,9 @@ export function Sidebar() {
         <Button
           size="sm"
           onClick={handleCreateProject}
-          className="w-full gap-1 text-xs justify-center py-1.5"
+          className="w-full gap-1 text-xs justify-center py-1.5 transition-all duration-300 ease-in-out hover:scale-[1.02] active:scale-[0.98] hover:shadow-lg hover:shadow-primary/20"
         >
-          <Plus className="h-3 w-3" /> Crear Sesión
+          <Plus className="h-3 w-3" /> Crear Proyecto
         </Button>
       </div>
 
@@ -98,7 +98,7 @@ export function Sidebar() {
             <div
               key={proj.id}
               onClick={() => setActiveProject(proj.id)}
-              className={`w-full text-left p-2.5 rounded-lg text-xs font-medium transition-all flex items-center gap-2 group cursor-pointer ${
+              className={`w-full text-left p-2.5 rounded-lg text-xs font-medium transition-all flex items-center gap-2 group cursor-pointer animate-fade-in ${
                 proj.id === activeProject?.id
                   ? "bg-primary/10 border border-primary/20 text-primary"
                   : "hover:bg-muted/50 border border-transparent text-muted-foreground"

@@ -4,7 +4,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="h-screen w-screen flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-y-auto">
       {/* Ambient glow effects */}
       <div className="ambient-glow" />
       <div className="ambient-glow-secondary" />

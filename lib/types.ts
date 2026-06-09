@@ -2,7 +2,7 @@
 
 export interface FeedItem {
   id: string;
-  type: "audio" | "manual" | "ai";
+  type: "audio" | "manual" | "ai" | "consultor-question" | "cliente-answer";
   text: string;
   timestamp: Date;
 }

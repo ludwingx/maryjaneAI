@@ -10,6 +10,8 @@ import {
   MessageSquare,
   Volume2,
   Brain,
+  HelpCircle,
+  CheckCircle,
 } from "lucide-react";
 import type { FeedItem } from "@/lib/types";
 
@@ -47,10 +49,14 @@ export function ChatFeed({
   }, [feed, feed.length, interimText, transcript, isAnalyzing]);
 
   const loadStarterMessage = (text: string) => {
+    // If it's a starter message representing a question, set type to consultor-question, else manual/cliente-answer
+    const isQuestion = text.startsWith("Consultor:");
+    const cleanText = text.replace(/^(Consultor|Cliente):\s*/i, "");
+    
     const newItem: FeedItem = {
       id: Math.random().toString(36).substr(2, 9),
-      type: "manual",
-      text,
+      type: isQuestion ? "consultor-question" : "cliente-answer",
+      text: cleanText,
       timestamp: new Date(),
     };
     const updatedFeed = [...feed, newItem];
@@ -73,7 +79,11 @@ export function ChatFeed({
           <div
             key={item.id}
             className={`flex flex-col gap-1.5 p-4 rounded-xl max-w-[85%] border transition-all duration-300 animate-slide-up ${
-              item.type === "ai"
+              item.type === "consultor-question"
+                ? "bg-primary/10 border-primary/30 ml-auto"
+                : item.type === "cliente-answer"
+                ? "bg-success-muted/10 border-success/30 mr-auto"
+                : item.type === "ai"
                 ? "bg-primary/5 border-primary/20 mr-auto"
                 : item.type === "audio"
                 ? "bg-cyan-muted border-cyan/20 mr-auto"
@@ -81,7 +91,17 @@ export function ChatFeed({
             }`}
           >
             <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-              {item.type === "ai" ? (
+              {item.type === "consultor-question" ? (
+                <>
+                  <HelpCircle className="h-3.5 w-3.5 text-primary" />
+                  <span className="text-primary font-bold">Pregunta Formulada</span>
+                </>
+              ) : item.type === "cliente-answer" ? (
+                <>
+                  <CheckCircle className="h-3.5 w-3.5 text-success" />
+                  <span className="text-success font-bold">Respuesta del Cliente</span>
+                </>
+              ) : item.type === "ai" ? (
                 <>
                   <Brain className="h-3 w-3 text-primary" />
                   <span>Mary Jane</span>
@@ -89,12 +109,12 @@ export function ChatFeed({
               ) : item.type === "audio" ? (
                 <>
                   <Mic className="h-3 w-3 text-cyan" />
-                  <span>Audio Transcrito</span>
+                  <span className="text-cyan font-bold">Respuesta del Cliente (Voz)</span>
                 </>
               ) : (
                 <>
                   <MessageSquare className="h-3 w-3 text-muted-foreground" />
-                  <span>Nota Manual</span>
+                  <span>Nota del Consultor</span>
                 </>
               )}
               <span>•</span>

@@ -43,8 +43,9 @@ const statusTranslations: Record<string, string> = {
 };
 
 export function AICopilotPanel() {
-  const { activeProject } = useApp();
+  const { activeProject, updateFeed, triggerAnalysis } = useApp();
   const analysisResult = activeProject?.analysis;
+  const feed = activeProject?.feed || [];
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -178,15 +179,24 @@ export function AICopilotPanel() {
                           size="sm"
                           variant="ghost"
                           onClick={() => {
+                            const newItem = {
+                              id: Math.random().toString(36).substr(2, 9),
+                              type: "consultor-question" as const,
+                              text: q.question,
+                              timestamp: new Date(),
+                            };
+                            const updatedFeed = [...feed, newItem];
+                            updateFeed(updatedFeed);
+                            
+                            // Enfocamos el input del chat para redactar la respuesta del cliente
                             const chatInput = document.getElementById("chat-input") as HTMLTextAreaElement;
                             if (chatInput) {
-                              chatInput.value = q.question;
-                              chatInput.dispatchEvent(new Event("input", { bubbles: true }));
                               chatInput.focus();
-                              toast.info("Pregunta colocada en el editor de chat.");
-                            } else {
-                              copyToClipboard(q.question);
                             }
+                            
+                            // Gatillar análisis silencioso
+                            setTimeout(() => triggerAnalysis(updatedFeed).catch((e: Error) => toast.error(e.message)), 100);
+                            toast.success("Pregunta formulada en el chat.");
                           }}
                           className="text-xs text-primary hover:text-primary-foreground hover:bg-primary opacity-0 group-hover:opacity-100 transition-opacity h-6 gap-1 px-2"
                         >
