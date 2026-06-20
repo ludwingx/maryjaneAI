@@ -4,7 +4,6 @@ import React, { useEffect, useRef } from "react";
 import { useApp } from "@/lib/store";
 
 import { Button } from "@/components/ui/button";
-import { StarterPrompts } from "@/components/workspace/starter-prompts";
 import {
   Mic,
   MessageSquare,
@@ -48,32 +47,9 @@ export function ChatFeed({
     scrollToBottom();
   }, [feed, feed.length, interimText, transcript, isAnalyzing]);
 
-  const loadStarterMessage = (text: string) => {
-    // If it's a starter message representing a question, set type to consultor-question, else manual/cliente-answer
-    const isQuestion = text.startsWith("Consultor:");
-    const cleanText = text.replace(/^(Consultor|Cliente):\s*/i, "");
-    
-    const newItem: FeedItem = {
-      id: Math.random().toString(36).substr(2, 9),
-      type: isQuestion ? "consultor-question" : "cliente-answer",
-      text: cleanText,
-      timestamp: new Date(),
-    };
-    const updatedFeed = [...feed, newItem];
-    updateFeed(updatedFeed);
-    setTimeout(() => triggerAnalysis(updatedFeed), 100);
-  };
-
-  const hasOnlyWelcome = feed.length <= 1 && !transcript && !interimText;
-
   return (
     <div ref={scrollAreaRef} className="flex-1 overflow-y-auto p-4 space-y-4 h-full max-h-full">
       <div className="flex flex-col gap-4 pb-8">
-        {/* Starter prompts when feed is empty */}
-        {hasOnlyWelcome && (
-          <StarterPrompts onSelect={loadStarterMessage} />
-        )}
-
         {/* Feed messages */}
         {feed.map((item) => (
           <div
