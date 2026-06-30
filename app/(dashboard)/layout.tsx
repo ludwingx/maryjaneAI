@@ -15,12 +15,12 @@ export default function DashboardLayout({
 
   // Auth guard — redirect to login if not authenticated
   useEffect(() => {
-    if (!state.isAuthenticated) {
+    if (state.isHydrated && !state.isAuthenticated) {
       router.push("/login");
     }
-  }, [state.isAuthenticated, router]);
+  }, [state.isHydrated, state.isAuthenticated, router]);
 
-  if (!state.isAuthenticated) {
+  if (!state.isHydrated || !state.isAuthenticated) {
     return (
       <div className="h-screen w-screen flex items-center justify-center">
         <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />

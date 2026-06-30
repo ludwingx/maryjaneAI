@@ -1,0 +1,218 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useApp } from "@/lib/store";
+import { ReportPanel } from "@/components/workspace/report-panel";
+import { TipsModal } from "@/components/workspace/tips-modal";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import {
+  Sparkles,
+  HelpCircle,
+  PanelLeft,
+  Edit2,
+  Check,
+  X,
+  FileText,
+} from "lucide-react";
+
+export default function ProjectReportPage({
+  params,
+}: {
+  params: Promise<{ projectId: string }>;
+}) {
+  const {
+    activeProject,
+    state,
+    renameProject,
+    toggleSidebar,
+    setActiveProject,
+  } = useApp();
+
+  const router = useRouter();
+  const [projectId, setProjectId] = useState<string | null>(null);
+
+  useEffect(() => {
+    params.then((p) => setProjectId(p.projectId));
+  }, [params]);
+
+  useEffect(() => {
+    if (projectId && state.isHydrated) {
+      if (state.activeProjectId !== projectId) {
+        if (state.projects.some((p) => p.id === projectId)) {
+          setActiveProject(projectId);
+        } else {
+          // If the project doesn't exist, redirect to home
+          router.replace("/");
+        }
+      }
+    }
+  }, [projectId, state.isHydrated, state.projects, state.activeProjectId, setActiveProject, router]);
+
+  const { sidebarOpen } = state;
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+
+  if (!state.isHydrated || !projectId) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-background">
+        <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (!activeProject || activeProject.id !== projectId) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-background">
+        <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  const handleStartEdit = () => {
+    setNewTitle(activeProject.name);
+    setIsEditingTitle(true);
+  };
+
+  const handleSaveTitle = async () => {
+    const trimmed = newTitle.trim();
+    if (!trimmed) {
+      toast.error("El nombre del proyecto no puede estar vacío.");
+      return;
+    }
+    if (trimmed === activeProject.name) {
+      setIsEditingTitle(false);
+      return;
+    }
+    const success = await renameProject(activeProject.id, trimmed);
+    if (success) {
+      toast.success("Proyecto renombrado con éxito.");
+      setIsEditingTitle(false);
+    } else {
+      toast.error("Error al renombrar el proyecto.");
+    }
+  };
+
+  return (
+    <div className="flex-1 flex flex-col h-full max-h-full overflow-hidden bg-background">
+      {/* Workspace Header */}
+      <header className="p-4 border-b border-border flex flex-col sm:flex-row gap-3 sm:gap-0 sm:items-center justify-between bg-card/50 backdrop-blur-md z-10">
+        <div className="flex items-center gap-3">
+          {/* Sidebar toggle button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleSidebar}
+            className="h-8 w-8 hover:bg-muted"
+            title={sidebarOpen ? "Ocultar menú lateral" : "Mostrar menú lateral"}
+          >
+            <PanelLeft className={`h-4 w-4 transition-transform duration-300 ${!sidebarOpen ? "text-primary" : "text-muted-foreground"}`} />
+          </Button>
+
+          <div className="p-2 bg-primary/10 rounded-lg text-primary">
+            <Sparkles className="h-5 w-5 animate-pulse" />
+          </div>
+
+          {isEditingTitle ? (
+            <div className="flex items-center gap-1">
+              <input
+                type="text"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                className="text-sm font-bold bg-background border border-border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary w-48"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveTitle();
+                  if (e.key === "Escape") setIsEditingTitle(false);
+                }}
+                autoFocus
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleSaveTitle}
+                className="h-7 w-7 text-emerald-500 hover:text-emerald-600 hover:bg-emerald-500/10"
+              >
+                <Check className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsEditingTitle(false)}
+                className="h-7 w-7 text-destructive hover:bg-destructive/10"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 group">
+              <div>
+                <h1 className="font-bold text-sm tracking-tight flex items-center gap-2">
+                  {activeProject.name}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleStartEdit}
+                    className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted"
+                    title="Editar nombre"
+                  >
+                    <Edit2 className="h-3 w-3 text-muted-foreground" />
+                  </Button>
+                </h1>
+                <p className="text-xs text-muted-foreground">
+                  Workspace de Relevamiento Inteligente
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Tab Selection buttons */}
+          <div className="flex bg-muted/40 p-1 rounded-lg border border-border/40 ml-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push(`/projects/${projectId}`)}
+              className="text-xs h-7 px-3 font-semibold"
+            >
+              Relevamiento
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="text-xs h-7 px-3 font-semibold gap-1.5"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Informe & Cotización
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs py-1">
+            ES-ES
+          </Badge>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsHelpOpen(true)}
+            className="gap-1.5 h-9"
+          >
+            <HelpCircle className="h-4 w-4" />
+            Tips
+          </Button>
+        </div>
+      </header>
+
+      {/* Main Workspace Body */}
+      <div className="flex-1 flex flex-row h-full max-h-full overflow-hidden">
+        <ReportPanel />
+      </div>
+
+      {/* Tips Modal */}
+      <TipsModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
+    </div>
+  );
+}

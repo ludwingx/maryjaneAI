@@ -15,6 +15,7 @@ interface AppState {
   registeredUsers: { username: string; password: string }[];
   sidebarOpen: boolean;
   copilotOpen: boolean;
+  isHydrated: boolean;
 }
 
 // ─── Actions ────────────────────────────────────────────────────
@@ -70,6 +71,7 @@ const initialState: AppState = {
   ],
   sidebarOpen: true,
   copilotOpen: true,
+  isHydrated: false,
 };
 
 // ─── Reducer ────────────────────────────────────────────────────
@@ -134,19 +136,39 @@ function appReducer(state: AppState, action: AppAction): AppState {
       };
     }
 
-    case "REHYDRATE":
+    case "REHYDRATE": {
+      let activeId = action.state.activeProjectId;
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        const urlProj = params.get("project");
+        if (urlProj && action.state.projects?.some((p: any) => p.id === urlProj)) {
+          activeId = urlProj;
+        }
+      }
       return {
         ...initialState,
         ...action.state,
+        activeProjectId: activeId,
         sidebarOpen: action.state.sidebarOpen !== undefined ? action.state.sidebarOpen : true,
         copilotOpen: action.state.copilotOpen !== undefined ? action.state.copilotOpen : true,
+        isHydrated: true,
       };
+    }
 
-    case "SET_PROJECTS":
+    case "SET_PROJECTS": {
+      const currentActiveId = state.activeProjectId;
+      // We check if the current active project is in the loaded list
+      const hasActive = action.projects.some((p) => p.id === currentActiveId);
+      const newActiveId = hasActive 
+        ? currentActiveId 
+        : (action.projects.length > 0 ? action.projects[0].id : "");
+
       return {
         ...state,
         projects: action.projects,
+        activeProjectId: newActiveId,
       };
+    }
 
     case "RENAME_PROJECT":
       return {
@@ -221,7 +243,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           dispatch({ type: "REHYDRATE", state: parsed });
         } catch (e) {
           console.error("Failed to parse saved state", e);
+          dispatch({ type: "REHYDRATE", state: initialState });
         }
+      } else {
+        dispatch({ type: "REHYDRATE", state: initialState });
       }
     }
   }, []);
@@ -247,13 +272,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         })
         .then((data) => {
           dispatch({ type: "SET_PROJECTS", projects: data });
-          if (data.length > 0 && (!state.activeProjectId || !data.some((p: any) => p.id === state.activeProjectId))) {
-            dispatch({ type: "SET_ACTIVE_PROJECT", id: data[0].id });
-          }
         })
         .catch((err) => console.error("Error loading projects:", err));
     }
-  }, [state.isAuthenticated, state.username, state.activeProjectId]);
+  }, [state.isAuthenticated, state.username]);
 
   const login = useCallback(
     async (username: string, password?: string) => {

@@ -30,6 +30,90 @@ enum DeliverableType {
   FULL_DOCUMENT
 }
 
+// ─── PRICING ENUMS ──────────────────────────────
+
+enum ProfessionalLevel {
+  JUNIOR
+  SEMI_SENIOR
+  SENIOR
+  TECH_LEAD
+  ARCHITECT
+  SPECIALIST
+}
+
+enum EducationLevel {
+  TECHNICAL
+  BACHELOR
+  ENGINEERING
+  MASTER
+  DOCTORATE
+}
+
+enum CostOfLiving {
+  VERY_LOW
+  LOW
+  MEDIUM
+  HIGH
+  VERY_HIGH
+}
+
+enum MarketScope {
+  LOCAL
+  LATAM
+  NORTH_AMERICA
+  EUROPE
+  GLOBAL
+}
+
+enum ClientType {
+  INDIVIDUAL
+  STARTUP
+  SME
+  ENTERPRISE
+  GOVERNMENT
+  NGO
+  UNIVERSITY
+}
+
+enum UrgencyLevel {
+  VERY_URGENT
+  URGENT
+  NORMAL
+  FLEXIBLE
+}
+
+enum ClarityLevel {
+  VERY_CLEAR
+  PARTIAL
+  VERY_AMBIGUOUS
+}
+
+enum AvailabilityLevel {
+  RESPONSIVE
+  SLOW
+  HARD_TO_REACH
+}
+
+enum ChangeLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum BusinessValue {
+  LOW
+  MEDIUM
+  HIGH
+  TRANSFORMATIONAL
+}
+
+enum PaymentMethod {
+  FULL_UPFRONT
+  MILESTONES
+  MONTHLY
+  ON_DELIVERY
+}
+
 // ─── MODELS ─────────────────────────────────────
 
 model User {
@@ -41,7 +125,8 @@ model User {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  projects  Project[]
+  projects        Project[]
+  providerProfile ProviderProfile?
 }
 
 model Client {
@@ -59,9 +144,9 @@ model Client {
 }
 
 model Project {
-  id        String    @id @default(cuid())
-  name      String
-  description String? @db.Text
+  id          String    @id @default(cuid())
+  name        String
+  description String?   @db.Text
 
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -74,6 +159,7 @@ model Project {
 
   sessions     Session[]
   deliverables Deliverable[]
+  context      ProjectContext?
 }
 
 model Session {
@@ -134,4 +220,101 @@ model Deliverable {
 
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
+}
+
+// ─── PRICING: PROVIDER PROFILE (Capa 1 — se configura UNA VEZ) ───
+
+model ProviderProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // ── Tarifas por tipo de trabajo (USD/hr) ──
+  rateGeneral    Float @default(35)
+  rateFrontend   Float @default(30)
+  rateBackend    Float @default(40)
+  rateAI         Float @default(55)
+  rateDesign     Float @default(25)
+  rateConsulting Float @default(50)
+  rateDevOps     Float @default(45)
+  rateQA         Float @default(28)
+
+  // ── Perfil profesional ──
+  yearsExperience   Int               @default(1)
+  professionalLevel ProfessionalLevel @default(SEMI_SENIOR)
+  educationLevel    EducationLevel    @default(BACHELOR)
+  specializations   String[]          @default([])
+  certifications    String[]          @default([])
+  completedProjects Int               @default(0)
+
+  // ── Costos operativos mensuales ──
+  internetCost      Float @default(0)
+  electricityCost   Float @default(0)
+  coworkingCost     Float @default(0)
+  hostingCost       Float @default(0)
+  licenseCost       Float @default(0)
+  domainCostYearly  Float @default(0)
+  accountingCost    Float @default(0)
+  incomeTaxRate     Float @default(0)
+  insuranceCost     Float @default(0)
+
+  // ── Contexto de mercado ──
+  providerCountry String      @default("Bolivia")
+  mainCurrency    String      @default("USD")
+  localCurrency   String      @default("Bs")
+  exchangeRate    Float       @default(6.96)
+  costOfLiving    CostOfLiving @default(LOW)
+  marketScope     MarketScope  @default(LATAM)
+
+  // ── Herramientas y productividad ──
+  aiTools              String[] @default([])
+  aiProductivityBoost  Float    @default(25)
+  teamMembers          String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── PRICING: PROJECT CONTEXT (Capa 2 — se configura POR PROYECTO) ───
+
+model ProjectContext {
+  id        String  @id @default(cuid())
+  projectId String  @unique
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // ── Perfil del cliente ──
+  clientType     ClientType @default(SME)
+  clientIndustry String     @default("Tech")
+  clientCountry  String     @default("")
+  clientLanguage String     @default("es")
+  clientTimezone String     @default("America/Guatemala")
+
+  // ── Contexto del proyecto ──
+  urgency             UrgencyLevel      @default(NORMAL)
+  clientBudget        String            @default("MEDIUM")
+  requirementsClarity ClarityLevel      @default(PARTIAL)
+  clientAvailability  AvailabilityLevel @default(RESPONSIVE)
+  changeProbability   ChangeLevel       @default(MEDIUM)
+  businessValue       BusinessValue     @default(MEDIUM)
+  estimatedMeetings   Int               @default(3)
+  estimatedRevisions  Int               @default(3)
+
+  // ── Condiciones comerciales ──
+  profitMargin        Float         @default(25)
+  negotiatedDiscount  Float         @default(0)
+  isRecurringClient   Boolean       @default(false)
+  isStrategicProject  Boolean       @default(false)
+  paymentMethod       PaymentMethod @default(MILESTONES)
+  upfrontPercentage   Float         @default(50)
+  includedRevisions   Int           @default(3)
+  supportMonths       Int           @default(1)
+  warrantyMonths      Int           @default(3)
+  trainingHours       Int           @default(4)
+  codeOwnership       Boolean       @default(true)
+  ndaRequired         Boolean       @default(false)
+  lateDeliveryPenalty Boolean       @default(false)
+  earlyDeliveryBonus  Boolean       @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

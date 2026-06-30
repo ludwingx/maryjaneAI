@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { z } from "zod";
+import { prisma } from "@/lib/db";
+import { buildPricingPrompt } from "@/lib/pricing";
 
 const SYSTEM_PROMPT = `Eres MaryJane AI — Senior Product Owner, Business Analyst y Software Architect.
 Tu tarea es tomar la bitácora o conversación de relevamiento de requerimientos de software que ha mantenido el consultor con el cliente y producir:
@@ -10,21 +12,21 @@ Tu tarea es tomar la bitácora o conversación de relevamiento de requerimientos
    - Requerimientos Funcionales principales.
    - Requerimientos No Funcionales.
    - Reglas de Negocio identificadas.
-2. Una COTIZACIÓN ESTIMADA DETALLADA del proyecto, que contenga:
-   - Una lista de módulos o componentes. Cada módulo debe tener:
-     - Nombre del módulo.
-     - Descripción.
-     - Horas estimadas de desarrollo.
-     - Complejidad (Baja, Media, Alta).
-     - Costo sugerido (calculado usando una tarifa base de $40 USD por hora).
-   - Costo Total del Proyecto en USD.
-   - Tiempo de entrega estimado en semanas.
+2. Una COTIZACIÓN ESTIMADA DETALLADA del proyecto, usando los parámetros de cotización del consultor provistos abajo.
+   - Cada módulo debe usar la tarifa por hora correspondiente al tipo de trabajo (frontend, backend, IA, etc.).
+   - Aplica los multiplicadores de esfuerzo indicados (urgencia, claridad, cambios, etc.).
+   - Descuenta la productividad por herramientas de IA.
+   - Incluye factores de riesgo detectados en la conversación.
+   - Aplica el margen de ganancia y descuentos.
+   - Genera un desglose transparente y justificable.
+   - Incluye una sección que explique en lenguaje simple POR QUÉ cada factor afectó el precio.
+3. Las condiciones comerciales del contrato al final.
 
-Genera el entregable en español con un tono profesional, claro y de alta calidad técnica.`;
+Genera TODO en español con un tono profesional, claro y de alta calidad técnica.`;
 
 export async function POST(request: NextRequest) {
   try {
-    const { context } = await request.json();
+    const { context, username, projectId } = await request.json();
 
     if (!context || context.trim().length === 0) {
       return Response.json(
@@ -44,6 +46,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Load pricing data from database
+    let providerProfile = null;
+    let projectContext = null;
+
+    if (username) {
+      const user = await prisma.user.findUnique({ where: { email: username } });
+      if (user) {
+        providerProfile = await prisma.providerProfile.findUnique({
+          where: { userId: user.id },
+        });
+      }
+    }
+
+    if (projectId) {
+      projectContext = await prisma.projectContext.findUnique({
+        where: { projectId },
+      });
+    }
+
+    // Build enriched pricing prompt
+    const pricingPrompt = buildPricingPrompt(providerProfile, projectContext);
+
     const modelName = process.env.DEFAULT_MODEL || "google/gemini-2.5-flash-lite:free";
 
     const openrouter = createOpenAI({
@@ -58,7 +82,11 @@ export async function POST(request: NextRequest) {
     const { object } = await generateObject({
       model: openrouter(modelName),
       system: SYSTEM_PROMPT,
-      prompt: `Genera el informe final de especificación y la cotización para el siguiente historial de relevamiento:
+      prompt: `${pricingPrompt}
+
+---
+
+Genera el informe final de especificación y la cotización para el siguiente historial de relevamiento:
       
 ---
 ${context}
@@ -69,18 +97,56 @@ ${context}
           z.object({
             name: z.string(),
             description: z.string(),
-            hours: z.number(),
+            workType: z.enum(["frontend", "backend", "ai", "design", "consulting", "devops", "qa", "general"]).describe("Tipo de trabajo para asignar tarifa"),
+            hours: z.number().describe("Horas base estimadas antes de multiplicadores"),
+            adjustedHours: z.number().describe("Horas después de aplicar multiplicadores y productividad IA"),
+            ratePerHour: z.number().describe("Tarifa por hora aplicada según el tipo de trabajo"),
             complexity: z.enum(["Baja", "Media", "Alta"]),
-            cost: z.number(),
+            cost: z.number().describe("Costo del módulo = adjustedHours × ratePerHour"),
           })
         ),
-        totalCost: z.number().describe("Costo total estimado en USD"),
+        pricingBreakdown: z.object({
+          effortSubtotal: z.number().describe("Suma de costos de todos los módulos"),
+          multiplierApplied: z.number().describe("Multiplicador combinado de esfuerzo aplicado (ej: 1.10)"),
+          multiplierDetails: z.array(z.object({
+            factor: z.string().describe("Nombre del factor (urgencia, claridad, etc.)"),
+            value: z.string().describe("Valor del factor (Normal, Parcial, etc.)"),
+            impact: z.string().describe("Impacto en el precio (+10%, -5%, etc.)"),
+          })),
+          riskFactors: z.array(z.object({
+            risk: z.string().describe("Factor de riesgo detectado"),
+            percentage: z.number().describe("Porcentaje de contingencia añadido"),
+          })),
+          riskTotal: z.number().describe("Monto total añadido por riesgos"),
+          extrasTotal: z.number().describe("Costos operativos + capacitación"),
+          extrasDetails: z.array(z.object({
+            concept: z.string(),
+            amount: z.number(),
+          })),
+          profitMargin: z.number().describe("Porcentaje de margen de ganancia aplicado"),
+          profitAmount: z.number().describe("Monto del margen de ganancia"),
+          discountAmount: z.number().describe("Monto total de descuentos aplicados"),
+          taxAmount: z.number().describe("Monto de impuestos si aplica"),
+          whyThisPrice: z.array(z.string()).describe("Lista de explicaciones en lenguaje simple de por qué cada factor afectó el precio"),
+        }),
+        commercialTerms: z.object({
+          paymentMethod: z.string().describe("Forma de pago"),
+          upfrontPercentage: z.number().describe("Porcentaje de anticipo"),
+          includedRevisions: z.number().describe("Revisiones incluidas"),
+          supportMonths: z.number().describe("Meses de soporte"),
+          warrantyMonths: z.number().describe("Meses de garantía"),
+          trainingHours: z.number().describe("Horas de capacitación"),
+          codeOwnership: z.boolean().describe("Cesión de código fuente"),
+          ndaRequired: z.boolean().describe("NDA requerido"),
+        }),
+        totalCost: z.number().describe("Precio final total en la moneda del consultor"),
+        currency: z.string().describe("Moneda de la cotización"),
         durationWeeks: z.number().describe("Tiempo estimado en semanas"),
       }),
     });
 
     return Response.json(object);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("AI Report generation error:", error);
     return Response.json(
       { error: "Error en el servidor al generar el informe" },
