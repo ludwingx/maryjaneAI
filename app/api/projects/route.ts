@@ -46,7 +46,7 @@ export async function GET(req: Request) {
     }
 
     // Map projects to ProjectSession client type
-    const projectSessions = user.projects.map((p) => {
+    const projectSessions = user.projects.map((p: any) => {
       const latestSession = p.sessions[0];
       return {
         id: p.id,
